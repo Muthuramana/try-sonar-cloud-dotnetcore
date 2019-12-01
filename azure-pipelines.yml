@@ -1,0 +1,40 @@
+-# ASP.NET Core
+# Build and test ASP.NET Core projects targeting .NET Core.
+# Add steps that run tests, create a NuGet package, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+
+trigger:
+- master
+
+pool:
+  vmImage: 'vs2017-win2016'
+
+variables:
+  buildConfiguration: 'Release'
+
+steps:
+ - task: SonarCloudPrepare@1
+   displayName: 'Prepare analysis on SonarCloud'
+   inputs:
+    SonarCloud: 'mk-lcc-sonar'
+    organization: muthuramana-github
+    projectKey: 'mk-lcc.try-sonar-dotnetcore'
+    projectName: try-sonar-dotnetcore
+
+# task to package a web app
+ - task: DotNetCoreCLI@2
+   displayName: 'dotnet publish application'
+   inputs:
+     command: 'publish'
+     projects: 'MK.TrySonarCloud\MK.TrySonarCloud.csproj'
+     arguments: '-o "$(build.artifactstagingdirectory)\Artifact\DeploymentPackages\\"'
+     publishWebProjects: false #set to false as this setting (which defaults to true) will parse the entire repo for web projects
+ - task: DotNetCoreCLI@2
+   displayName: Test
+   inputs:
+     command: test
+     projects: 'MK.TrySonarCloud\*UnitTests\*UnitTests.csproj'
+     arguments: '--configuration ${{ parameters.BuildConfiguration }} --collect "Code coverage"'
+ - task: SonarCloudAnalyze@1
+   displayName: 'Run Code Analysis'
+   condition: and(succeeded(), variables['ShouldRunSonarCloud'], 'True')
